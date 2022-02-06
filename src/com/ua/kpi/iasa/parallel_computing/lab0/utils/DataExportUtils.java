@@ -23,6 +23,14 @@ public final class DataExportUtils {
         generateIterationColumn(runContext);
     }
 
+
+    public static void setupFile(com.ua.kpi.iasa.parallel_computing.lab1.context.RunContext runContext) {
+        createExportDir();
+        cleanExportFile(runContext.getExportFileName());
+        createExportFile(runContext.getExportFileName());
+        generateIterationColumn(runContext);
+    }
+
     private static void cleanExportFile(String exportFileName) {
         File file = Paths.get(getOutputDir(), exportFileName).toFile();
         file.delete();
@@ -43,6 +51,20 @@ public final class DataExportUtils {
     public static String getOutputDir() {
         String projectPath = Paths.get("").toUri().getPath();
         return Paths.get(projectPath, EXPORT_DIR_NAME).toString();
+    }
+
+    public static void generateIterationColumn(com.ua.kpi.iasa.parallel_computing.lab1.context.RunContext context) {
+        File file = Paths.get(getOutputDir(), context.getExportFileName()).toFile();
+        try (FileWriter fileWriter = new FileWriter(file)) {
+            fileWriter.write(ITERATION_TITLE);
+            fileWriter.write(",\n");
+
+            for (int i = 1; i <= context.getIterationCount(); i++) {
+                fileWriter.write(i + ",\n");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public static void generateIterationColumn(RunContext context) {
