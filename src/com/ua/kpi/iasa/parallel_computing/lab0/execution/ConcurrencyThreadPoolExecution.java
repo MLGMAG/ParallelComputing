@@ -1,7 +1,8 @@
 package com.ua.kpi.iasa.parallel_computing.lab0.execution;
 
+import com.ua.kpi.iasa.parallel_computing.lab0.context.MinThreadContext;
 import com.ua.kpi.iasa.parallel_computing.lab0.context.RunContext;
-import com.ua.kpi.iasa.parallel_computing.lab0.context.ThreadContext;
+import com.ua.kpi.iasa.parallel_computing.lab0.context.CountThreadContext;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -25,21 +26,57 @@ public class ConcurrencyThreadPoolExecution {
         // Time profiling
         long avgTime = profileAvgTime(runContext, ConcurrencyThreadPoolExecution::concurrencyThreadPool, APPROACH_TITLE);
 
-        printResult(APPROACH_TITLE, avgTime, resultVector[0]);
+        printResult(APPROACH_TITLE, avgTime, runContext.getNumberToFind(), resultVector[0]);
     }
 
     private static int concurrencyThreadPool(RunContext runContext) {
-        // Create threads contexts
-        AtomicInteger atomicResult = new AtomicInteger();
-        List<ThreadContext> threadContexts = generateThreadContextsBasedOnBatchSize(runContext, atomicResult, runContext.getBatchSizeThreadPool());
+        int min = calculateMin(runContext);
+        runContext.setNumberToFind(min);
+
+        AtomicInteger atomicResult = calculateCount(runContext);
+
+        return atomicResult.get();
+    }
+
+    private static int calculateMin(RunContext runContext) {
+        AtomicInteger minResult = new AtomicInteger(runContext.getVector()[0]);
+        List<MinThreadContext> minThreadContexts = generateMinThreadContextsBasedOnBatchSize(runContext, minResult, runContext.getBatchSizeThreadPool());
 
         // Create Executor Service
         int threadsCount = runContext.getThreadsCount();
         ExecutorService executorService = Executors.newFixedThreadPool(threadsCount);
 
         // Submit tasks
-        for (ThreadContext threadContext : threadContexts) {
-            Runnable runnable = generateRunnable(threadContext);
+        for (MinThreadContext minThreadContext : minThreadContexts) {
+            Runnable runnable = generateMinRunnable(minThreadContext);
+            executorService.submit(runnable);
+        }
+
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(EXECUTOR_SERVICE_SHUT_DOWN_LIMIT, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException ex) {
+            ex.printStackTrace();
+            Thread.currentThread().interrupt();
+        }
+
+        return minResult.get();
+    }
+
+    private static AtomicInteger calculateCount(RunContext runContext) {
+        // Create threads contexts
+        AtomicInteger countResult = new AtomicInteger();
+        List<CountThreadContext> countThreadContexts = generateCountThreadContextsBasedOnBatchSize(runContext, countResult, runContext.getBatchSizeThreadPool());
+
+        // Create Executor Service
+        int threadsCount = runContext.getThreadsCount();
+        ExecutorService executorService = Executors.newFixedThreadPool(threadsCount);
+
+        // Submit tasks
+        for (CountThreadContext countThreadContext : countThreadContexts) {
+            Runnable runnable = generateCountRunnable(countThreadContext);
             executorService.submit(runnable);
         }
 
@@ -53,8 +90,7 @@ public class ConcurrencyThreadPoolExecution {
             ex.printStackTrace();
             Thread.currentThread().interrupt();
         }
-
-        return atomicResult.get();
+        return countResult;
     }
 
     private ConcurrencyThreadPoolExecution() {

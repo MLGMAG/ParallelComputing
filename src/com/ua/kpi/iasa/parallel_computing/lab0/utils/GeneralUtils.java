@@ -1,7 +1,8 @@
 package com.ua.kpi.iasa.parallel_computing.lab0.utils;
 
+import com.ua.kpi.iasa.parallel_computing.lab0.context.MinThreadContext;
 import com.ua.kpi.iasa.parallel_computing.lab0.context.RunContext;
-import com.ua.kpi.iasa.parallel_computing.lab0.context.ThreadContext;
+import com.ua.kpi.iasa.parallel_computing.lab0.context.CountThreadContext;
 import com.ua.kpi.iasa.parallel_computing.lab0.exception.IncorrectResultException;
 
 import java.util.ArrayList;
@@ -14,6 +15,16 @@ import static com.ua.kpi.iasa.parallel_computing.lab0.utils.DataExportUtils.addC
 public final class GeneralUtils {
 
     private GeneralUtils() {
+    }
+
+    public static int findMinElement(int[] vector, int startPosition, int endPosition) {
+        int min = vector[0];
+        for (int i : vector) {
+            if (i < min)
+                min = i;
+        }
+
+        return min;
     }
 
     public static int calculateNumberOccurrence(int[] vector, int startPosition, int endPosition, int numberToFind) {
@@ -76,48 +87,99 @@ public final class GeneralUtils {
         return times;
     }
 
-    public static void printResult(String title, long avgTimeNs, int result) {
+    public static void printResult(String title, long avgTimeNs, int minResult, int count) {
         double avgTimeMs = avgTimeNs / 1e6;
-        String messagePattern = "%s approach result: %d, avg time: %f ms (%d ns)";
-        String message = String.format(messagePattern, title, result, avgTimeMs, avgTimeNs);
+        String messagePattern = "%s approach result: min element '%d', count %d, avg time: %f ms (%d ns)";
+        String message = String.format(messagePattern, title, minResult, count, avgTimeMs, avgTimeNs);
         System.out.println(message);
     }
 
-    public static List<ThreadContext> generateThreadContextsBasedOnBatchSize(RunContext runContext, AtomicInteger atomicResult, int batchSize) {
+    public static List<CountThreadContext> generateCountThreadContextsBasedOnBatchSize(RunContext runContext, AtomicInteger atomicResult, int batchSize) {
         int vectorLength = runContext.getVector().length;
 
         int threadBatchSize = vectorLength / batchSize;
 
-        List<ThreadContext> threadContexts = new ArrayList<>(batchSize);
+        List<CountThreadContext> countThreadContexts = new ArrayList<>(batchSize);
         for (int i = 0; i < batchSize; i++) {
             int startPosition = i * threadBatchSize;
             int endPosition = startPosition + threadBatchSize;
             int numberToFind = runContext.getNumberToFind();
             int[] vector = runContext.getVector();
 
-            ThreadContext threadContext;
+            CountThreadContext countThreadContext;
             if (i == batchSize - 1) {
-                threadContext = new ThreadContext(startPosition, vectorLength, numberToFind, vector, atomicResult);
+                countThreadContext = new CountThreadContext(startPosition, vectorLength, numberToFind, vector, atomicResult);
             } else {
-                threadContext = new ThreadContext(startPosition, endPosition, numberToFind, vector, atomicResult);
+                countThreadContext = new CountThreadContext(startPosition, endPosition, numberToFind, vector, atomicResult);
             }
-            threadContexts.add(threadContext);
+            countThreadContexts.add(countThreadContext);
         }
 
-        return threadContexts;
+        return countThreadContexts;
     }
 
-    public static Runnable generateRunnable(ThreadContext threadContext) {
+    public static List<MinThreadContext> generateMinThreadContextsBasedOnBatchSize(RunContext runContext, AtomicInteger atomicResult, int batchSize) {
+        int vectorLength = runContext.getVector().length;
+
+        int threadBatchSize = vectorLength / batchSize;
+
+        List<MinThreadContext> minThreadContexts = new ArrayList<>(batchSize);
+        for (int i = 0; i < batchSize; i++) {
+            int startPosition = i * threadBatchSize;
+            int endPosition = startPosition + threadBatchSize;
+            int[] vector = runContext.getVector();
+
+            MinThreadContext minThreadContext;
+            if (i == batchSize - 1) {
+                minThreadContext = new MinThreadContext(startPosition, vectorLength, vector, atomicResult);
+            } else {
+                minThreadContext = new MinThreadContext(startPosition, endPosition, vector, atomicResult);
+            }
+            minThreadContexts.add(minThreadContext);
+        }
+
+        return minThreadContexts;
+    }
+
+    public static Runnable generateCountRunnable(CountThreadContext countThreadContext) {
         return () -> {
-            int[] vector = threadContext.getVector();
-            int startPosition = threadContext.getStartPosition();
-            int endPosition = threadContext.getEndPosition();
-            int numberToFind = threadContext.getNumberToFind();
+            int[] vector = countThreadContext.getVector();
+            int startPosition = countThreadContext.getStartPosition();
+            int endPosition = countThreadContext.getEndPosition();
+            int numberToFind = countThreadContext.getNumberToFind();
 
             int result = calculateNumberOccurrence(vector, startPosition, endPosition, numberToFind);
 
-            AtomicInteger numberCount = threadContext.getNumberCount();
+            AtomicInteger numberCount = countThreadContext.getNumberCount();
             numberCount.addAndGet(result);
         };
+    }
+
+    public static Runnable generateMinRunnable(MinThreadContext minThreadContext) {
+        return () -> {
+            int[] vector = minThreadContext.getVector();
+            int startPosition = minThreadContext.getStartPosition();
+            int endPosition = minThreadContext.getEndPosition();
+
+            int result = findMinElement(vector, startPosition, endPosition);
+
+            AtomicInteger minNumber = minThreadContext.getMinNumber();
+
+            lessThanCAS(minNumber, result);
+        };
+    }
+
+    public static void lessThanCAS(AtomicInteger oldValue, int newValue) {
+        while (true) {
+            int local = oldValue.get();
+
+            if (newValue > local) {
+                return;
+            }
+
+            if (oldValue.compareAndSet(local, newValue)) {
+                return;
+            }
+        }
     }
 }

@@ -14,13 +14,13 @@ public class SequentialExecution {
 
         // Time profiling
         long avgTime = profileAvgTime(runContext, SequentialExecution::sequential, APPROACH_TITLE);
-
-        printResult(APPROACH_TITLE, avgTime, resultVector[0]);
+        printResult(APPROACH_TITLE, avgTime, runContext.getNumberToFind(), resultVector[0]);
     }
 
     private static int sequential(RunContext runContext) {
         int[] vector = runContext.getVector();
-        int numberToFind = runContext.getNumberToFind();
+        int numberToFind = findMinElement(vector, 0, vector.length);
+        runContext.setNumberToFind(numberToFind);
         return calculateNumberOccurrence(vector, 0, vector.length, numberToFind);
     }
 

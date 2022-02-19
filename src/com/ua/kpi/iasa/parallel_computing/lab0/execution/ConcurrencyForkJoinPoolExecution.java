@@ -1,6 +1,7 @@
 package com.ua.kpi.iasa.parallel_computing.lab0.execution;
 
 import com.ua.kpi.iasa.parallel_computing.lab0.context.FindNumberOccurrenceTaskContext;
+import com.ua.kpi.iasa.parallel_computing.lab0.context.MinTaskContext;
 import com.ua.kpi.iasa.parallel_computing.lab0.context.RunContext;
 
 import java.util.concurrent.ForkJoinPool;
@@ -19,11 +20,18 @@ public class ConcurrencyForkJoinPoolExecution {
         // Time profiling
         long avgTime = profileAvgTime(runContext, ConcurrencyForkJoinPoolExecution::concurrencyForkJoinPool, APPROACH_TITLE);
 
-        printResult(APPROACH_TITLE, avgTime, resultVector[0]);
+        printResult(APPROACH_TITLE, avgTime, runContext.getNumberToFind(), resultVector[0]);
     }
 
     private static int concurrencyForkJoinPool(RunContext runContext) {
         ForkJoinPool forkJoinPool = ForkJoinPool.commonPool();
+
+        MinTaskContext minTaskContext  = new MinTaskContext(runContext);
+        FindMinTask findMinTask = new FindMinTask(minTaskContext);
+        Integer min = forkJoinPool.invoke(findMinTask);
+
+        runContext.setNumberToFind(min);
+
         FindNumberOccurrenceTaskContext findNumberOccurrenceTaskContext = new FindNumberOccurrenceTaskContext(runContext);
         FindNumberOccurrenceTask findNumberOccurrenceTask = new FindNumberOccurrenceTask(findNumberOccurrenceTaskContext);
         return forkJoinPool.invoke(findNumberOccurrenceTask);
